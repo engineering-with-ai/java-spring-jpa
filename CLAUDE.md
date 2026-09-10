@@ -213,7 +213,19 @@ works directly and is what CI and pre-commit habit should default to; the `make`
 convenience dispatch layer on top, not a replacement for it.
 
 ### Toolchain
-- Committed `mvnw`. `maven-toolchains-plugin` pins compile/test/spotbugs/PMD to JDK 21, leaving the system default JDK untouched. Local dev: `~/.m2/toolchains.xml`. CI: generated from `$JAVA_HOME` into a repo-local `.ci-toolchains.xml`, passed with `-t` (`make <verb> MVNW="./mvnw -t .ci-toolchains.xml"`). JDK 21 on the runner comes from `openjdk-21-jdk` in `tooling-playbooks/gitlab-runner-setup.yml`. `semgrep` (for `audit-src`) is NOT baked into the runner — CI's `before_script` falls back to a per-job `pipx install semgrep` when it's missing, so the pipeline stays green without depending on a tooling-playbooks change; worth baking into the runner image later to drop the ~10s/job tax, but not required. Dockerfile: writes one against the temurin base image at the default `~/.m2/toolchains.xml` path (a single in-container `mvnw` call, no nesting to worry about).
+- Committed `mvnw`. `maven-toolchains-plugin` pins compile/test/spotbugs/PMD to JDK 21, leaving the system default JDK untouched. Local dev: `~/.m2/toolchains.xml`. CI: generated from `$JAVA_HOME` into a repo-local `.ci-toolchains.xml`, passed with `-t` to one `./mvnw clean verify` call — not the `make` verbs broken into separate steps, see below. JDK 21 on the runner comes from `openjdk-21-jdk` in `tooling-playbooks/gitlab-runner-setup.yml`. `semgrep` (for `audit-src`) is NOT baked into the runner and isn't needed there either — `audit-src`/`checks`/`security` are manual-only verbs, not part of CI's gate. Dockerfile: writes one against the temurin base image at the default `~/.m2/toolchains.xml` path (a single in-container `mvnw` call, no nesting to worry about).
+
+### CI runs `mvn verify` directly, not the `make` verbs
+CI's `check` job is one `./mvnw clean verify` call, not `make checks && make cover && make
+integration`. Two reasons: (1) semgrep (`audit-src`/`checks`/`security`) and OWASP dependency-check
+(`audit-packages`) aren't bound to any Maven lifecycle phase at all — they're manual-only verbs,
+see the `mvn` verbs table — so CI never needs semgrep on the runner in the first place; (2) the
+70% JaCoCo line gate needs BOTH unit (Surefire) and integration (Failsafe) execution data in the
+same `jacoco.exec` to clear 70% — unit tests alone land around 56%. `mvn verify`'s lifecycle runs
+Surefire then Failsafe then the JaCoCo check, in that order, so this is automatic; splitting into
+separate `make cover` / `make integration` invocations runs the gate before integration tests have
+contributed anything and fails it. The `make` verbs stay the right tool for a human running one
+thing at a time locally — just not for CI's combined gate.
 
 ### Integration testing with Testcontainers 🐳
 - `TestcontainersConfiguration` (`@TestConfiguration`, in `tests/java/com/ewa/springjpa/`) declares `@Bean @ServiceConnection PostgreSQLContainer` — a JVM singleton, one startup for the whole `*IT` suite.

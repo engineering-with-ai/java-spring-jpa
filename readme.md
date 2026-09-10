@@ -85,4 +85,9 @@ Point it at a JDK 21 with `~/.m2/toolchains.xml`:
 ```
 
 CI generates the same file from `$JAVA_HOME` into a repo-local `.ci-toolchains.xml` and passes it
-with `-t`. The Dockerfile writes one the same way, against the temurin base image.
+with `-t` to a single `./mvnw clean verify` call — not the `make` verbs split into separate steps.
+`audit-src`/`checks`/`security` (semgrep) and `audit-packages` (OWASP) aren't bound to any Maven
+phase, so `verify` never needs them; and the 70% JaCoCo gate needs combined unit+integration
+coverage data, which only lines up correctly inside one `verify` run (see CLAUDE.md for why a
+`make cover` + `make integration` split fails it). The Dockerfile writes a toolchains file the
+same way, against the temurin base image.
