@@ -30,6 +30,8 @@
     <build-helper.version>3.6.1</build-helper.version>
     <pmd.version>3.28.0</pmd.version>
     <dependency-check.version>13.0.0</dependency-check.version>
+    <!-- Boot 4.1.1 manages 11.0.24, which carries known CVEs; 11.0.25 fixes them. -->
+    <tomcat.version>11.0.25</tomcat.version>
   </properties>
 
   <dependencies>
@@ -251,17 +253,10 @@
         </executions>
       </plugin>
 
-      <!-- audit-packages: the pip-audit / npm-audit analog. NOT bound to any phase — deliberately
-           advisory-only, invoked solely via the `audit-packages` Makefile target.
-           Reason: without a free NVD API key the first scan can take a long time against NVD's
-           public rate limit, and false positives are common — gating `mvn verify` on this by
-           default would make every fresh clone's first build slow/flaky before anyone has tuned
-           suppressions. nvdApiKeyEnvironmentVariable (not nvdApiKey/-DnvdApiKey) reads the key
-           straight from the NVD_API_KEY env var at runtime — the plugin's own docs call this out
-           as the safer option, since a -D flag or an interpolated ${env.*} property can leak into
-           Maven debug logs. See template-secrets.env for NVD_API_KEY. failBuildOnCVSS=7 only
-           matters when you actually invoke this verb — fails on High/Critical, not Medium/Low,
-           same bar as the nestjs sibling's npm audit moderate threshold. -->
+      <!-- audit-packages: the pip-audit / npm-audit analog. Not bound to a phase — only runs via
+           `make audit-packages`/`checks`. nvdApiKeyEnvironmentVariable reads NVD_API_KEY straight
+           from the env (safer than -D, which can leak into Maven debug logs). failBuildOnCVSS=7
+           matches the ts sibling's npm audit moderate threshold. -->
       <plugin>
         <groupId>org.owasp</groupId>
         <artifactId>dependency-check-maven</artifactId>
@@ -269,6 +264,9 @@
         <configuration>
           <failBuildOnCVSS>7</failBuildOnCVSS>
           <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+          <suppressionFiles>
+            <suppressionFile>dependency-check-suppress.xml</suppressionFile>
+          </suppressionFiles>
         </configuration>
       </plugin>
 
