@@ -1,0 +1,35 @@
+# Spring-native wiring only. cfg.yml is the source of truth for non-secrets (via Config.Loader,
+# which also feeds server.port / server.address / logging.level.root directly). Secrets come from
+# the environment. Never add config values here that belong in cfg.yml.
+spring:
+  application:
+    name: java-spring-jpa
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://${app.postgresHost}:5432/postgres
+    username: postgres
+    password: ${POSTGRES_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+server:
+  port: ${app.port}
+  address: ${app.host}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
+# Downstream endpoint for the sample outbound call. Tests override this to a WireMock URL.
+call-api:
+  base-url: https://httpbin.org

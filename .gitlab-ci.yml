@@ -1,0 +1,57 @@
+stages:
+  - check
+  - publish
+  - mirror
+
+# The engineering-with-ai runner is a Debian shell executor — no `image:` / `services:` (ignored).
+# It provides git+ssh, docker, node, python. Java 21 comes from openjdk-21-jdk, installed by
+# tooling-playbooks/gitlab-runner-setup.yml. The Maven wrapper pulls Maven itself.
+
+check:
+  stage: check
+  before_script:
+    - export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+    - |
+      test -x "$JAVA_HOME/bin/javac" || { echo "openjdk-21-jdk missing on runner — run tooling-playbooks gitlab-runner-setup"; exit 1; }
+    - |
+      command -v semgrep >/dev/null || { echo "semgrep missing on runner — add it to tooling-playbooks gitlab-runner-setup (audit-src needs it)"; exit 1; }
+    - |
+      cat > .ci-toolchains.xml <<EOF
+      <toolchains><toolchain><type>jdk</type><provides><version>21</version></provides><configuration><jdkHome>$JAVA_HOME</jdkHome></configuration></toolchain></toolchains>
+      EOF
+  script:
+    # checks      = depcheck + format + lint(PMD) + typecheck + security(SpotBugs+Semgrep, OWASP)
+    # cover       = unit tests w/ JaCoCo agent + report + 70% line gate
+    # integration = failsafe *IT (Testcontainers Postgres + WireMock)
+    - make checks MVNW="./mvnw -B --no-transfer-progress -t .ci-toolchains.xml"
+    - make cover MVNW="./mvnw -B --no-transfer-progress -t .ci-toolchains.xml"
+    - make integration MVNW="./mvnw -B --no-transfer-progress -t .ci-toolchains.xml"
+    - |
+      awk -F, 'NR>1 {m+=$4; c+=$5} END {printf "Total coverage: %.1f%%\n", 100*c/(c+m)}' target/site/jacoco/jacoco.csv
+  coverage: '/Total coverage: (\d+\.\d+)%/'
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - target/surefire-reports/TEST-*.xml
+        - target/failsafe-reports/TEST-*.xml
+    paths:
+      - target/site/jacoco/
+
+publish:
+  stage: publish
+  script:
+    - docker login -u admin -p $HARBOR_PASSWORD 173.211.12.43:8083
+    - docker build -t 173.211.12.43:8083/library/java-spring-jpa .
+    - docker push 173.211.12.43:8083/library/java-spring-jpa
+
+mirror:
+  stage: mirror
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: 0
+  script:
+    - git checkout -B main
+    - git push --mirror git@github.com:engineering-with-ai/java-spring-jpa.git
+  only:
+    - main
