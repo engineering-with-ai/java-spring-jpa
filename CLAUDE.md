@@ -199,8 +199,8 @@ phase binding, so none run automatically during `mvn verify`.
 | `typecheck` | `-DskipTests compile` |
 | `audit-src` | `spotbugs:check` + `semgrep scan --config p/java` |
 | `audit-packages` | `dependency-check:check` (OWASP) — deliberately not gating `verify`, see pom.xml comment |
-| `security` | `audit-src` + `audit-packages` |
-| `checks` | `depcheck` + `format` + `lint` + `typecheck` + `security` |
+| `security` | `audit-src` + `audit-packages` (manual-only, see below — `checks` does not include it) |
+| `checks` | `depcheck` + `format` + `lint` + `typecheck` + `audit-src` |
 | `unit` | `test` (`*Test`, Surefire) |
 | `integration` | `failsafe:integration-test` (`*IT`, Failsafe — needs Docker) |
 | `test` | `unit` + `integration` |

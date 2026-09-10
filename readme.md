@@ -49,8 +49,8 @@ analog).
 | `typecheck` | `-DskipTests compile` |
 | `audit-src` | `spotbugs:check` + `semgrep scan --config p/java` |
 | `audit-packages` | `dependency-check:check` (OWASP) — advisory, see below |
-| `security` | `audit-src` + `audit-packages` |
-| `checks` | `depcheck` + `format` + `lint` + `typecheck` + `security` |
+| `security` | `audit-src` + `audit-packages` (manual-only — see below) |
+| `checks` | `depcheck` + `format` + `lint` + `typecheck` + `audit-src` |
 | `unit` | `test` (`*Test`, Surefire) |
 | `integration` | `failsafe:integration-test` (`*IT`, Failsafe — needs Docker) |
 | `test` | `unit` + `integration` |
@@ -62,10 +62,11 @@ analog).
 Failsafe → JaCoCo gate) — the `make` verbs are a dispatch layer on top, not a replacement.
 
 `audit-packages` (OWASP dependency-check) is deliberately **not** wired into `mvn verify`'s
-automatic gate — without a free NVD API key the first scan is slow against NVD's public rate
-limit, and false positives are common. It only runs when invoked directly, same as the siblings'
-`pip-audit` / `npm audit` verbs. Reads `NVD_API_KEY` straight from the environment (no `-D` flag
-needed) — see `template-secrets.env`.
+automatic gate, nor into `checks`/`security`-as-run-by-`checks`/CI — without a free NVD API key
+the first scan is slow against NVD's public rate limit, and false positives are common; CI has no
+such key configured. It only runs when invoked directly (`make audit-packages`, or `make
+security` for both src + packages), same as the siblings' `pip-audit` / `npm audit` verbs. Reads
+`NVD_API_KEY` straight from the environment (no `-D` flag needed) — see `template-secrets.env`.
 
 ## Config & secrets
 

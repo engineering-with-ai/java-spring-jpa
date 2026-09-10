@@ -30,7 +30,9 @@ check:
       <toolchains><toolchain><type>jdk</type><provides><version>21</version></provides><configuration><jdkHome>$JAVA_HOME</jdkHome></configuration></toolchain></toolchains>
       EOF
   script:
-    # checks      = depcheck + format + lint(PMD) + typecheck + security(SpotBugs+Semgrep, OWASP)
+    # checks      = depcheck + format + lint(PMD) + typecheck + audit-src(SpotBugs+Semgrep)
+    #               (audit-packages/OWASP excluded here — advisory-only, needs NVD_API_KEY, not
+    #               configured as a CI secret; run `make audit-packages` locally)
     # cover       = unit tests w/ JaCoCo agent + report + 70% line gate
     # integration = failsafe *IT (Testcontainers Postgres + WireMock)
     - make checks MVNW="./mvnw -B --no-transfer-progress -t .ci-toolchains.xml"
