@@ -198,9 +198,9 @@ phase binding, so none run automatically during `mvn verify`.
 | `lint` | `pmd:check` — correctness + style (SpotBugs is bug-pattern detection, a different category; it lives under `audit-src`) |
 | `typecheck` | `-DskipTests compile` |
 | `audit-src` | `spotbugs:check` + `semgrep scan --config p/java` |
-| `audit-packages` | `dependency-check:check` (OWASP) — deliberately not gating `verify`, see pom.xml comment |
-| `security` | `audit-src` + `audit-packages` (manual-only, see below — `checks` does not include it) |
-| `checks` | `depcheck` + `format` + `lint` + `typecheck` + `audit-src` |
+| `audit-packages` | `dependency-check:check` (OWASP) — needs `NVD_API_KEY`, see pom.xml comment |
+| `security` | `audit-src` + `audit-packages` |
+| `checks` | `depcheck` + `format` + `lint` + `typecheck` + `security` |
 | `unit` | `test` (`*Test`, Surefire) |
 | `integration` | `failsafe:integration-test` (`*IT`, Failsafe — needs Docker) |
 | `test` | `unit` + `integration` |
@@ -216,8 +216,10 @@ convenience dispatch layer on top, not a replacement for it.
 - Committed `mvnw`. `maven-toolchains-plugin` pins compile/test/spotbugs/PMD to JDK 21, leaving the system default JDK untouched. Local dev: `~/.m2/toolchains.xml`. CI: generated from `$JAVA_HOME` into a repo-local `.ci-toolchains.xml`, passed with `-t`. JDK 21 on the runner comes from `openjdk-21-jdk` in `tooling-playbooks/gitlab-runner-setup.yml`. Dockerfile: writes one against the temurin base image at the default `~/.m2/toolchains.xml` path (a single in-container `mvnw` call, no nesting to worry about).
 
 ### CI gate
-`mvn clean verify` (unit+integration coverage must share one `jacoco.exec` for the 70% gate) then
-`make audit-src`. `audit-packages` stays manual-only — needs `NVD_API_KEY`, not a CI secret.
+`make checks` (includes `security` — `audit-src` + `audit-packages`) then one `./mvnw clean
+verify` call (unit+integration coverage must share one `jacoco.exec` for the 70% gate — splitting
+that into separate `make cover`/`make integration` invocations runs the gate before Failsafe
+contributes anything and fails it).
 
 ### Integration testing with Testcontainers 🐳
 - `TestcontainersConfiguration` (`@TestConfiguration`, in `tests/java/com/ewa/springjpa/`) declares `@Bean @ServiceConnection PostgreSQLContainer` — a JVM singleton, one startup for the whole `*IT` suite.
