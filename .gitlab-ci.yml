@@ -17,14 +17,13 @@ check:
       cat > .ci-toolchains.xml <<EOF
       <toolchains><toolchain><type>jdk</type><provides><version>21</version></provides><configuration><jdkHome>$JAVA_HOME</jdkHome></configuration></toolchain></toolchains>
       EOF
+    - |
+      # pipx installs land in ~/.local/bin, not reliably on PATH for a non-interactive job.
+      export PATH="$HOME/.local/bin:$PATH"
+      command -v semgrep >/dev/null || pipx install semgrep
   script:
-    # One lifecycle invocation, not the make verbs split into steps: `verify` runs spotless check,
-    # compile, PMD, SpotBugs, Surefire (*Test), Failsafe (*IT), then the JaCoCo 70% line gate —
-    # and that gate needs BOTH unit and integration execution data in the same jacoco.exec to
-    # clear 70% (confirmed: unit-only coverage is ~56%). Splitting this into separate `make cover`
-    # / `make integration` steps runs the gate before integration tests have contributed anything.
-    # semgrep (make audit-src/checks) and dependency-check (make audit-packages) aren't part of
-    # `verify` at all — they're manual-only verbs, not part of this gate, see readme/CLAUDE.md.
+    - make checks MVNW="./mvnw -B --no-transfer-progress -t .ci-toolchains.xml"
+    # one verify call — unit+integration coverage must land in the same jacoco.exec for the 70% gate
     - ./mvnw -B --no-transfer-progress -t .ci-toolchains.xml clean verify
     - |
       awk -F, 'NR>1 {m+=$4; c+=$5} END {printf "Total coverage: %.1f%%\n", 100*c/(c+m)}' target/site/jacoco/jacoco.csv

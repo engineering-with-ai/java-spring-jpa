@@ -21,9 +21,9 @@ import org.yaml.snakeyaml.Yaml;
 /**
  * Non-secret app config, bound from the {@code app.*} keys that {@link Loader} lifts out of {@code
  * cfg.yml} for the active {@code ENV}. The zod/Pydantic {@code Config} model analog: one validated
- * value object, not scattered {@code @Value} injections — collapsed into one file, same as the
- * sibling templates' single {@code config.py}/{@code config.ts} (nested types stay public; Java
- * only requires one *public top-level* type per file, matching the filename, not one type total).
+ * value object, not scattered {@code @Value} injections — one file, same as the sibling templates'
+ * single {@code config.py}/{@code config.ts} (nested types stay public; Java only requires one
+ * *public top-level* type per file, matching the filename, not one type total).
  *
  * @param logLevel root log level
  * @param port HTTP listen port

@@ -7,87 +7,8 @@
 ![](https://img.shields.io/badge/build-maven-C71A36?logo=apachemaven)
 ![](https://img.shields.io/badge/ORM-hibernate%2Fjpa-59666C)
 
-
 ## Pre-Requisites
 
 ```shell
 pipx install semgrep
 ```
-
-PMD and OWASP dependency-check are plain Maven deps — no extra install. Semgrep is a standalone
-CLI (no JVM-native equivalent covers the same ground), so it has to be on `PATH` separately —
-same tier as this fleet's `cargo install cargo-audit ...` in `rust-base/readme.md`.
-
-## Layout
-
-```
-src/main/java/com/ewa/springjpa/
-  Application.java          entry point + OpenAPI bean
-  AppController.java        GET / health check
-  Config.java               cfg.yml loader + validated Config record (nested LogLevel, Loader)
-  example/                  CRUD resource — controller, service, JpaRepository, dto/ records
-    entities/                 JPA entity
-  callapi/                  outbound RestClient call — controller, service, dto/ record
-src/test/java/com/ewa/springjpa/
-  <feature>/<Feature>ServiceTest.java   unit — Mockito, AAA (Surefire)
-tests/java/com/ewa/springjpa/
-  <Feature>ResourceIT.java              integration — @SpringBootTest + Testcontainers / WireMock (Failsafe)
-  TestcontainersConfiguration.java      shared real-Postgres container for every *IT
-```
-
-## `make` verbs
-
-Every verb dispatches the same way: `make <verb>` (the poe-task / npm-script / `cargo cmd`
-analog).
-
-| verb | runs |
-|---|---|
-| `dev` | `spring-boot:run` (devtools hot-reload) |
-| `depcheck` | `dependency:analyze-only` — unused declared deps, advisory |
-| `format` | `spotless:apply` |
-| `lint` | `pmd:check` — correctness + style |
-| `typecheck` | `-DskipTests compile` |
-| `audit-src` | `spotbugs:check` + `semgrep scan --config p/java` |
-| `audit-packages` | `dependency-check:check` (OWASP) — advisory, see below |
-| `security` | `audit-src` + `audit-packages` (manual-only — see below) |
-| `checks` | `depcheck` + `format` + `lint` + `typecheck` + `audit-src` |
-| `unit` | `test` (`*Test`, Surefire) |
-| `integration` | `failsafe:integration-test` (`*IT`, Failsafe — needs Docker) |
-| `test` | `unit` + `integration` |
-| `cover` | unit tests w/ JaCoCo agent + report + 70% line gate |
-| `review` | `claude` code-reviewer agent against the diff |
-| `commit` | `checks` + `test` + `review` + `git add -A && git cz && git push` |
-
-`./mvnw verify` still works directly too (spotless → compile → Surefire → SpotBugs → PMD →
-Failsafe → JaCoCo gate) — the `make` verbs are a dispatch layer on top, not a replacement.
-
-`audit-packages` (OWASP dependency-check) is deliberately **not** wired into `mvn verify`'s
-automatic gate, nor into `checks`/`security`-as-run-by-`checks`/CI — without a free NVD API key
-the first scan is slow against NVD's public rate limit, and false positives are common; CI has no
-such key configured. It only runs when invoked directly (`make audit-packages`, or `make
-security` for both src + packages), same as the siblings' `pip-audit` / `npm audit` verbs. Reads
-`NVD_API_KEY` straight from the environment (no `-D` flag needed) — see `template-secrets.env`.
-
-## Config & secrets
-
-- Non-secrets: `cfg.yml`, `local` / `beta` blocks, selected by `$ENV` (default `local`).
-- Secrets: environment only. Names tracked in `template-secrets.env` (`POSTGRES_PASSWORD`, optional `NVD_API_KEY`).
-- OpenAPI: `/swagger-ui`, `/v3/api-docs`.
-
-## Toolchain
-
-Build runs on JDK 21 via `maven-toolchains-plugin`; the system default JDK is left alone.
-Point it at a JDK 21 with `~/.m2/toolchains.xml`:
-
-```xml
-<toolchains><toolchain><type>jdk</type><provides><version>21</version></provides>
-  <configuration><jdkHome>/path/to/jdk-21</jdkHome></configuration></toolchain></toolchains>
-```
-
-CI generates the same file from `$JAVA_HOME` into a repo-local `.ci-toolchains.xml` and passes it
-with `-t` to a single `./mvnw clean verify` call — not the `make` verbs split into separate steps.
-`audit-src`/`checks`/`security` (semgrep) and `audit-packages` (OWASP) aren't bound to any Maven
-phase, so `verify` never needs them; and the 70% JaCoCo gate needs combined unit+integration
-coverage data, which only lines up correctly inside one `verify` run (see CLAUDE.md for why a
-`make cover` + `make integration` split fails it). The Dockerfile writes a toolchains file the
-same way, against the temurin base image.

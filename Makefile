@@ -21,8 +21,7 @@ lint:
 typecheck:
 	$(MVNW) -DskipTests compile
 
-# bug-pattern (SpotBugs) + SAST (Semgrep CLI — see readme "Pre-Requisites"). FindSecBugs was
-# considered and rejected: confirmed dead/unmaintained.
+# bug-pattern (SpotBugs) + SAST (Semgrep CLI — see readme "Pre-Requisites").
 audit-src:
 	$(MVNW) spotbugs:check
 	semgrep scan --config p/java --error src tests
@@ -32,12 +31,9 @@ audit-src:
 audit-packages:
 	$(MVNW) dependency-check:check
 
-# audit-packages deliberately excluded — advisory-only, needs NVD_API_KEY to be fast, can be
-# slow/flaky on a first scan without one. CI's `check` job (and `commit`, below) must stay fast
-# and not depend on a secret that isn't configured there; run `make audit-packages` by hand.
 security: audit-src audit-packages
 
-checks: depcheck format lint typecheck audit-src
+checks: depcheck format lint typecheck security
 
 unit:
 	$(MVNW) test

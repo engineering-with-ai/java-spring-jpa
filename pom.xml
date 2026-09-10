@@ -212,8 +212,7 @@
       </plugin>
 
       <!-- bug-pattern analysis (bytecode-level) — bundled under the `audit-src` verb, not `lint`.
-           Bound to `verify`. includeTests=false already, so the tests/java move needs no change
-           here: it never scanned test classes in the first place. -->
+           Bound to `verify`. includeTests=false: never scans test classes. -->
       <plugin>
         <groupId>com.github.spotbugs</groupId>
         <artifactId>spotbugs-maven-plugin</artifactId>
@@ -274,14 +273,12 @@
       </plugin>
 
       <!-- integration tests: *IT via Failsafe, bound to `verify` (unit *Test stays on Surefire).
-           Scans target/test-classes by class name, not by source dir, so the tests/java move
-           needs no config change here either. jdkToolchain: maven-toolchains-plugin's own
-           `toolchain` goal is bound to `validate`, which only runs as part of the full lifecycle
-           — a bare `mvnw failsafe:integration-test` (single-goal CLI syntax, what the `integration`
-           Makefile target calls) skips `validate` entirely, so without this Failsafe forks its
-           test JVM under whatever JDK ran Maven itself, not JDK 21, and chokes on the JDK21-
-           compiled *IT classes (class file version mismatch). jdkToolchain makes Failsafe resolve
-           the toolchain itself, independent of whether the toolchains-plugin goal already ran. -->
+           jdkToolchain: maven-toolchains-plugin's `toolchain` goal is bound to `validate`, which a
+           bare single-goal CLI call (e.g. `mvnw failsafe:integration-test`, what `make integration`
+           runs) skips entirely — without jdkToolchain set here, Failsafe would fork its test JVM
+           under whatever JDK ran Maven itself rather than JDK 21, and choke on JDK21-compiled *IT
+           classes (class file version mismatch). This makes Failsafe resolve the toolchain itself,
+           regardless of invocation style. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
