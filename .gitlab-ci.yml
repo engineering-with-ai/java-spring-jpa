@@ -19,7 +19,10 @@ check:
       # gitlab-runner-setup (devops-engineer's repo, not this one). Still worth baking into the
       # runner image eventually to drop this ~10s/job tax.
       export PATH="$HOME/.local/bin:$PATH"
-      command -v semgrep >/dev/null || pipx install semgrep
+      if ! command -v semgrep >/dev/null; then
+        python3 --version; pip3 --version || true
+        pipx install semgrep || { echo "--- pipx pip error log ---"; cat "$HOME"/.local/pipx/logs/cmd_*_pip_errors.log 2>/dev/null; exit 1; }
+      fi
       command -v semgrep >/dev/null || { echo "semgrep install failed — check pipx/python on the runner"; exit 1; }
     - |
       cat > .ci-toolchains.xml <<EOF
